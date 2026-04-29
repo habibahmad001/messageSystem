@@ -2,15 +2,18 @@ import * as mysql from "mysql2/promise";
 import * as bcrypt from "bcryptjs";
 import { env } from "../env";
 
-// Create connection pool
+// Create connection pool with environment variables
 const pool = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "mywhatsapp",
+  host: env.DB_HOST,
+  port: parseInt(env.DB_PORT),
+  user: env.DB_USER,
+  password: env.DB_PASSWORD,
+  database: env.DB_NAME,
+  connectionLimit: 10,
+  enableKeepAlive: true,
 });
 
-console.log("[DB] Pool created successfully");
+console.log(`[DB] Pool created successfully - Host: ${env.DB_HOST}, Database: ${env.DB_NAME}`);
 
 // Save session to DB
 export async function saveSessionToDB(sessionName: string, sessionData: any, userId: number | null = null) {

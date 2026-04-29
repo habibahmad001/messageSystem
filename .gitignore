@@ -3,3 +3,9 @@ wa_credentials/
 .env
 media/*
 !media/.gitkeep
+dist/
+*.log
+.DS_Store
+*.db
+*.sqlite
+pnpm-lock.yaml

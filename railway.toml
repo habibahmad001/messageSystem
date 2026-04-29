@@ -1,0 +1,15 @@
+[build]
+builder = "NIXPACKS"
+
+[build.env]
+NPM_CONFIG_PRODUCTION = "false"
+NODE_ENV = "production"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/session"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+
+# Add a MySQL database service to your project and these will be automatically injected
+# Or set them manually in variables section
