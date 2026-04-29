@@ -5,8 +5,17 @@ import { env } from "../env";
 // Create connection pool with environment variables and error handling
 let pool: mysql.Pool;
 
+// Log database configuration (without password)
+console.log(`[DB] Attempting connection with:`, {
+  host: env.DB_HOST,
+  port: env.DB_PORT,
+  user: env.DB_USER,
+  database: env.DB_NAME,
+  passwordLength: env.DB_PASSWORD?.length || 0
+});
+
 try {
-  pool = mysql.createPool({
+  const dbConfig = {
     host: env.DB_HOST,
     port: parseInt(env.DB_PORT),
     user: env.DB_USER,
@@ -16,19 +25,40 @@ try {
     enableKeepAlive: true,
     connectTimeout: 10000,
     acquireTimeout: 10000,
+  };
+
+  console.log(`[DB] Creating pool with config:`, {
+    ...dbConfig,
+    password: dbConfig.password ? '***' : 'empty'
   });
+
+  pool = mysql.createPool(dbConfig);
 
   // Test connection
   pool.getConnection()
-    .then(() => {
-      console.log(`[DB] Pool created successfully - Host: ${env.DB_HOST}, Database: ${env.DB_NAME}`);
+    .then((connection) => {
+      console.log(`[DB] ✅ Pool created successfully - Host: ${env.DB_HOST}, Database: ${env.DB_NAME}`);
+      connection.release();
     })
     .catch((err) => {
-      console.error(`[DB] Warning: Could not connect to database - Host: ${env.DB_HOST}, Error: ${err.message}`);
+      console.error(`[DB] ❌ Warning: Could not connect to database`);
+      console.error(`[DB] Error Details:`, {
+        code: err.code,
+        message: err.message,
+        errno: err.errno,
+        sqlState: err.sqlState
+      });
+      console.error(`[DB] Connection attempted:`, {
+        host: env.DB_HOST,
+        port: env.DB_PORT,
+        user: env.DB_USER,
+        database: env.DB_NAME,
+        hasPassword: !!env.DB_PASSWORD
+      });
       console.error(`[DB] App will continue but database features may not work properly`);
     });
 } catch (error) {
-  console.error(`[DB] Failed to create database pool:`, error);
+  console.error(`[DB] ❌ Failed to create database pool:`, error);
   // Create a mock pool to prevent crashes
   pool = {
     async execute() { return []; },

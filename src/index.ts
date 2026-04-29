@@ -128,10 +128,17 @@ app.route("/admin", createAdminController());
 const port = env.PORT;
 
 console.log(`[Startup] Starting server on port ${port}...`);
-console.log(`[Startup] NODE_ENV: ${env.NODE_ENV}`);
-console.log(`[Startup] DB_HOST: ${env.DB_HOST}`);
-console.log(`[Startup] PORT: ${port}`);
-console.log(`[Startup] RAILWAY_ENVIRONMENT: ${env.RAILWAY_ENVIRONMENT || 'not set'}`);
+console.log(`[Startup] Environment Configuration:`);
+console.log(`[Startup]   NODE_ENV: ${env.NODE_ENV}`);
+console.log(`[Startup]   PORT: ${port}`);
+console.log(`[Startup]   DB_HOST: ${env.DB_HOST || 'NOT SET'}`);
+console.log(`[Startup]   DB_PORT: ${env.DB_PORT}`);
+console.log(`[Startup]   DB_USER: ${env.DB_USER}`);
+console.log(`[Startup]   DB_NAME: ${env.DB_NAME}`);
+console.log(`[Startup]   DB_PASSWORD: ${env.DB_PASSWORD ? 'SET' : 'NOT SET'}`);
+console.log(`[Startup]   RAILWAY_ENVIRONMENT: ${env.RAILWAY_ENVIRONMENT || 'not set'}`);
+console.log(`[Startup]   WEBHOOK_BASE_URL: ${env.WEBHOOK_BASE_URL || 'not set'}`);
+console.log(`[Startup]   KEY: ${env.KEY ? 'SET' : 'NOT SET'}`);
 
 serve(
   {
