@@ -20,6 +20,17 @@ import * as path from "path";
 
 const app = new Hono();
 
+// Add global error handlers for uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('[Startup] Uncaught Exception:', error);
+  // Don't exit the process, log and continue
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Startup]Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process, log and continue
+});
+
 app.use(
   logger((...params) => {
     params.map((e) => console.log(`${moment().toISOString()} | ${e}`));
@@ -39,7 +50,25 @@ app.get("/health", (c) => {
   return c.json({
     status: "ok",
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    database: env.DB_HOST,
+    port: env.PORT
+  });
+});
+
+/**
+ * Root endpoint for basic testing
+ */
+app.get("/", (c) => {
+  return c.json({
+    message: "WhatsApp Gateway API",
+    version: "4.3.1",
+    endpoints: {
+      health: "/health",
+      sessions: "/session",
+      messages: "/message",
+      auth: "/auth"
+    }
   });
 });
 
