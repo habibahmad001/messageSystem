@@ -11,8 +11,8 @@ RUN npm ci
 # Copy source code and other files
 COPY . .
 
-# Create media directory
-RUN mkdir -p media
+# Create necessary directories
+RUN mkdir -p media wa_credentials
 
 # Expose port
 EXPOSE 5001
