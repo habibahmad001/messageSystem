@@ -3,7 +3,10 @@ import { z } from "zod";
 
 export const env = z
   .object({
-    NODE_ENV: z.enum(["DEVELOPMENT", "PRODUCTION"]).default("DEVELOPMENT"),
+    NODE_ENV: z
+      .enum(["DEVELOPMENT", "PRODUCTION", "development", "production"])
+      .transform((val) => val.toUpperCase() as "DEVELOPMENT" | "PRODUCTION")
+      .default("DEVELOPMENT"),
     KEY: z.string().default(""),
     PORT: z
       .string()
