@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.example
+README.md
+.md
+media/*
+!media/.gitkeep
+wa_credentials
+dist
+*.log
+.DS_Store
+frontend/node_modules
+frontend/dist
+frontend/build

@@ -9,7 +9,7 @@
 ### 1. Push Your Changes to GitHub
 ```bash
 git add .
-git commit -m "Fix Railway deployment configuration"
+git commit -m "Add Dockerfile for Railway deployment"
 git push origin main
 ```
 
@@ -17,7 +17,7 @@ git push origin main
 1. Go to [railway.app](https://railway.app/)
 2. Click "New Project" → "Deploy from GitHub repo"
 3. Select your `wa-gateway` repository
-4. Railway will detect it as a Node.js project
+4. Railway will detect the Dockerfile and build using Node.js 22
 
 ### 3. Add Database Service
 **CRITICAL**: You must add a MySQL database for persistent storage:
@@ -31,13 +31,13 @@ Railway automatically provides database variables, but you need to add a few mor
 
 **Add these variables manually:**
 - `NODE_ENV` = `production`
-- `KEY` = (generate a secure API key)
+- `KEY` = (generate a secure API key - see below)
 - `PORT` = `5001`
 
 **Railway automatically provides these from your MySQL service:**
 - `DATABASE_URL` (auto-populated)
 - `MYSQLHOST` (auto-populated)
-- `MYSQLPORT` (auto-populated) 
+- `MYSQLPORT` (auto-populated)
 - `MYSQLDATABASE` (auto-populated)
 - `MYSQLUSER` (auto-populated)
 - `MYSQLPASSWORD` (auto-populated)
@@ -54,10 +54,21 @@ DB_PASSWORD=${MYSQLPASSWORD}
 DB_NAME=${MYSQLDATABASE}
 ```
 
-### 6. Deployment Health Check
+### 6. Generate and Set KEY
+Generate a secure API key:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Set this as the `KEY` environment variable in Railway.
+
+### 7. Deployment Health Check
 - Railway will automatically redeploy when you push changes
 - Check the logs for any errors
 - The health check path is `/session`
+
+## Docker Configuration
+The project now uses a Dockerfile that ensures Node.js 22 is used, which is required for the `@whiskeysockets/baileys` package.
 
 ## Important Notes
 
@@ -77,10 +88,10 @@ For persistent media storage, consider:
 
 ## Troubleshooting
 
-### Build Fails
-- Check that you removed `pnpm-lock.yaml` 
-- Verify `package.json` is valid
-- Check Railway build logs
+### Build Fails with Node.js Version Error
+- Ensure Dockerfile is present and committed
+- Check that Dockerfile uses `node:22-alpine`
+- Verify Railway is using the Dockerfile (not NIXPACKS)
 
 ### Database Connection Issues
 - Ensure MySQL service is running
@@ -91,6 +102,11 @@ For persistent media storage, consider:
 - Check database is properly connected
 - Verify `sessions` table exists
 - Check logs for database errors
+
+### Container Won't Start
+- Check Railway logs for error messages
+- Verify all environment variables are set
+- Ensure database service is running before app starts
 
 ## Webhook Configuration
 If using webhooks, set:
