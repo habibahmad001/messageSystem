@@ -1,16 +1,52 @@
 services:
+  # Backend Service
   - type: web
     name: wa-gateway-backend
-    env: node
+    runtime: docker
+    env: docker
     plan: free
-    buildCommand: npm install
+    buildCommand: docker build -t wa-gateway .
     startCommand: npm start
     envVars:
       - key: NODE_ENV
-        value: PRODUCTION
+        value: production
       - key: PORT
         value: 5001
       - key: KEY
         generateValue: true
+      # For PostgreSQL (Free on Render)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: wa-gateway-db
+          property: connectionString
+      - key: DB_HOST
+        fromDatabase:
+          name: wa-gateway-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: wa-gateway-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: wa-gateway-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: wa-gateway-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: wa-gateway-db
+          property: database
       - key: WEBHOOK_BASE_URL
         sync: false
+
+databases:
+  # PostgreSQL Database (Free tier on Render)
+  # Note: Render's free tier includes PostgreSQL, not MySQL
+  # Your app will need PostgreSQL support or you can use paid MySQL
+  - name: wa-gateway-db
+    databaseName: wa_gateway
+    user: wa_gateway_user
+    plan: free
