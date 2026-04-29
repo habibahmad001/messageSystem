@@ -23,40 +23,71 @@ try {
     database: env.DB_NAME,
     connectionLimit: 10,
     enableKeepAlive: true,
-    connectTimeout: 10000,
-    acquireTimeout: 10000,
+    connectTimeout: 20000, // Increased from 10000
+    acquireTimeout: 20000,  // Increased from 10000
+    waitForConnections: true,
+    queueLimit: 0,
+    retry: {
+      retries: 3,
+      factor: 1,
+      minTimeout: 1000,
+      maxTimeout: 5000
+    }
   };
 
   console.log(`[DB] Creating pool with config:`, {
     ...dbConfig,
-    password: dbConfig.password ? '***' : 'empty'
+    password: dbConfig.password ? '***' : 'empty',
+    retry: dbConfig.retry
   });
 
   pool = mysql.createPool(dbConfig);
 
-  // Test connection
-  pool.getConnection()
-    .then((connection) => {
-      console.log(`[DB] ✅ Pool created successfully - Host: ${env.DB_HOST}, Database: ${env.DB_NAME}`);
-      connection.release();
-    })
-    .catch((err) => {
-      console.error(`[DB] ❌ Warning: Could not connect to database`);
-      console.error(`[DB] Error Details:`, {
-        code: err.code,
-        message: err.message,
-        errno: err.errno,
-        sqlState: err.sqlState
-      });
-      console.error(`[DB] Connection attempted:`, {
-        host: env.DB_HOST,
-        port: env.DB_PORT,
-        user: env.DB_USER,
-        database: env.DB_NAME,
-        hasPassword: !!env.DB_PASSWORD
-      });
-      console.error(`[DB] App will continue but database features may not work properly`);
-    });
+  // Test connection with retries
+  const testConnection = async (retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const connection = await pool.getConnection();
+        console.log(`[DB] ✅ Pool created successfully - Host: ${env.DB_HOST}, Database: ${env.DB_NAME}`);
+        connection.release();
+        return true;
+      } catch (err: any) {
+        console.error(`[DB] ❌ Connection attempt ${i + 1}/${retries} failed:`, {
+          code: err.code,
+          message: err.message,
+          errno: err.errno
+        });
+
+        if (i < retries - 1) {
+          const waitTime = (i + 1) * 2000; // 2s, 4s, 6s
+          console.log(`[DB] Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else {
+          console.error(`[DB] ❌ All connection attempts failed`);
+          console.error(`[DB] Final Error Details:`, {
+            code: err.code,
+            message: err.message,
+            errno: err.errno,
+            sqlState: err.sqlState
+          });
+          console.error(`[DB] Connection attempted:`, {
+            host: env.DB_HOST,
+            port: env.DB_PORT,
+            user: env.DB_USER,
+            database: env.DB_NAME,
+            hasPassword: !!env.DB_PASSWORD
+          });
+          console.error(`[DB] Common causes: DB not ready, network issues, or wrong credentials`);
+          console.error(`[DB] App will continue but database features may not work properly`);
+          return false;
+        }
+      }
+    }
+    return false;
+  };
+
+  testConnection();
+
 } catch (error) {
   console.error(`[DB] ❌ Failed to create database pool:`, error);
   // Create a mock pool to prevent crashes
