@@ -33,6 +33,17 @@ app.onError(globalErrorMiddleware);
 app.notFound(notFoundMiddleware);
 
 /**
+ * Health check endpoint (no auth required for Railway)
+ */
+app.get("/health", (c) => {
+  return c.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+/**
  * serve media message static files
  */
 app.use(
@@ -133,88 +144,98 @@ import { getAllSessionsFromDB, initUsersTable, initContactsTable, initMessagesTa
 
 (async () => {
   try {
+    // Add delay to ensure database is ready
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     await initUsersTable();
     await initContactsTable();
     await initMessagesTable();
     const sessions = await getAllSessionsFromDB();
     for (const session of sessions) {
       console.log(`[Startup] Restoring session: ${session.session_name}`);
-      await whastapp.startSession(session.session_name, {
-        sessionData: typeof session.session_data === 'string'
-          ? JSON.parse(session.session_data)
-          : session.session_data,
-        onConnected: async () => {
-          console.log(`[Startup] Session '${session.session_name}' connected`);
-        },
-        onQRUpdated: (qr: string) => {
-          console.log(`[Startup] Session '${session.session_name}' QR updated`);
-        },
-        onMessageReceived: async (msg: any) => {
-          // Save incoming message
-          if (!msg.key.fromMe) {
-            const content = msg.message?.conversation ||
-              msg.message?.extendedTextMessage?.text ||
-              msg.message?.imageMessage?.caption ||
-              msg.message?.videoMessage?.caption ||
-              "Media Message";
+      try {
+        await whastapp.startSession(session.session_name, {
+          sessionData: typeof session.session_data === 'string'
+            ? JSON.parse(session.session_data)
+            : session.session_data,
+          onConnected: async () => {
+            console.log(`[Startup] Session '${session.session_name}' connected`);
+          },
+          onQRUpdated: (qr: string) => {
+            console.log(`[Startup] Session '${session.session_name}' QR updated`);
+          },
+          onMessageReceived: async (msg: any) => {
+            // Save incoming message
+            if (!msg.key.fromMe) {
+              const content = msg.message?.conversation ||
+                msg.message?.extendedTextMessage?.text ||
+                msg.message?.imageMessage?.caption ||
+                msg.message?.videoMessage?.caption ||
+                "Media Message";
 
-            const messageType = Object.keys(msg.message || {})[0];
-            const type = msg.message?.imageMessage ? 'image' :
-              msg.message?.videoMessage ? 'video' :
-                msg.message?.documentMessage ? 'document' :
-                  msg.message?.stickerMessage ? 'sticker' : 'text';
+              const messageType = Object.keys(msg.message || {})[0];
+              const type = msg.message?.imageMessage ? 'image' :
+                msg.message?.videoMessage ? 'video' :
+                  msg.message?.documentMessage ? 'document' :
+                    msg.message?.stickerMessage ? 'sticker' : 'text';
 
-            let mediaUrl = null;
+              let mediaUrl = null;
 
-            // Handle Media Download
-            if (['image', 'video', 'document', 'sticker'].includes(type)) {
-              try {
-                const buffer = await downloadMediaMessage(
-                  msg,
-                  'buffer',
-                  {},
-                  {
-                    logger: console as any,
-                    reuploadRequest: (msg: any) => new Promise((resolve) => resolve(msg))
+              // Handle Media Download
+              if (['image', 'video', 'document', 'sticker'].includes(type)) {
+                try {
+                  const buffer = await downloadMediaMessage(
+                    msg,
+                    'buffer',
+                    {},
+                    {
+                      logger: console as any,
+                      reuploadRequest: (msg: any) => new Promise((resolve) => resolve(msg))
+                    }
+                  );
+
+                  if (buffer) {
+                    const ext = type === 'image' ? 'jpg' :
+                      type === 'video' ? 'mp4' :
+                        type === 'sticker' ? 'webp' :
+                          'bin'; // Default for document if unknown
+
+                    const fileName = `${Date.now()}_${msg.key.id}.${ext}`;
+                    const filePath = path.join("media", fileName);
+
+                    // Ensure media directory exists
+                    if (!fs.existsSync("media")) {
+                      fs.mkdirSync("media");
+                    }
+
+                    await fs.promises.writeFile(filePath, buffer);
+                    mediaUrl = `/media/${fileName}`;
+                    console.log(`[Media] Saved to ${mediaUrl}`);
                   }
-                );
-
-                if (buffer) {
-                  const ext = type === 'image' ? 'jpg' :
-                    type === 'video' ? 'mp4' :
-                      type === 'sticker' ? 'webp' :
-                        'bin'; // Default for document if unknown
-
-                  const fileName = `${Date.now()}_${msg.key.id}.${ext}`;
-                  const filePath = path.join("media", fileName);
-
-                  // Ensure media directory exists
-                  if (!fs.existsSync("media")) {
-                    fs.mkdirSync("media");
-                  }
-
-                  await fs.promises.writeFile(filePath, buffer);
-                  mediaUrl = `/media/${fileName}`;
-                  console.log(`[Media] Saved to ${mediaUrl}`);
+                } catch (err) {
+                  console.error("[Media] Failed to download media:", err);
                 }
-              } catch (err) {
-                console.error("[Media] Failed to download media:", err);
               }
-            }
 
-            await saveMessageToDB(
-              session.session_name,
-              msg.key.remoteJid || '',
-              false,
-              type,
-              content,
-              mediaUrl
-            );
+              await saveMessageToDB(
+                session.session_name,
+                msg.key.remoteJid || '',
+                false,
+                type,
+                content,
+                mediaUrl
+              );
+            }
           }
-        }
-      } as any);
+        } as any);
+      } catch (sessionError) {
+        console.error(`[Startup] Failed to restore session '${session.session_name}':`, sessionError);
+        // Continue with other sessions
+      }
     }
+    console.log(`[Startup] Completed. ${sessions.length} sessions processed.`);
   } catch (error) {
-    console.error("[Startup] Failed to restore sessions:", error);
+    console.error("[Startup] Failed to initialize database or restore sessions:", error);
+    // Don't crash the app on startup failures
   }
 })();
