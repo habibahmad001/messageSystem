@@ -17,5 +17,8 @@ export const env = z
     DB_USER: z.string().default("root"),
     DB_PASSWORD: z.string().default(""),
     DB_NAME: z.string().default("mywhatsapp"),
+    // Railway specific
+    RAILWAY_ENVIRONMENT: z.string().optional(),
+    RAILWAY_SERVICE_NAME: z.string().optional(),
   })
   .parse(process.env);

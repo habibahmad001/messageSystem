@@ -98,13 +98,21 @@ app.route("/admin", createAdminController());
 
 const port = env.PORT;
 
+console.log(`[Startup] Starting server on port ${port}...`);
+console.log(`[Startup] NODE_ENV: ${env.NODE_ENV}`);
+console.log(`[Startup] DB_HOST: ${env.DB_HOST}`);
+console.log(`[Startup] PORT: ${port}`);
+console.log(`[Startup] RAILWAY_ENVIRONMENT: ${env.RAILWAY_ENVIRONMENT || 'not set'}`);
+
 serve(
   {
     fetch: app.fetch,
     port,
+    hostname: '0.0.0.0', // Listen on all interfaces for Railway
   },
   (info) => {
-    console.log(`Server is running on http://localhost:${info.port}`);
+    console.log(`✅ Server is running on http://localhost:${info.port}`);
+    console.log(`[Startup] Health check available at http://localhost:${info.port}/health`);
   }
 );
 
@@ -144,13 +152,19 @@ import { getAllSessionsFromDB, initUsersTable, initContactsTable, initMessagesTa
 
 (async () => {
   try {
+    console.log('[Startup] Waiting for database to be ready...');
     // Add delay to ensure database is ready
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 5000));
 
+    console.log('[Startup] Initializing database tables...');
     await initUsersTable();
     await initContactsTable();
     await initMessagesTable();
+
+    console.log('[Startup] Fetching sessions from database...');
     const sessions = await getAllSessionsFromDB();
+    console.log(`[Startup] Found ${sessions.length} sessions to restore`);
+
     for (const session of sessions) {
       console.log(`[Startup] Restoring session: ${session.session_name}`);
       try {
@@ -236,6 +250,7 @@ import { getAllSessionsFromDB, initUsersTable, initContactsTable, initMessagesTa
     console.log(`[Startup] Completed. ${sessions.length} sessions processed.`);
   } catch (error) {
     console.error("[Startup] Failed to initialize database or restore sessions:", error);
+    console.error("[Startup] App will continue without database/session restoration");
     // Don't crash the app on startup failures
   }
 })();

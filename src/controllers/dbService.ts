@@ -2,18 +2,41 @@ import * as mysql from "mysql2/promise";
 import * as bcrypt from "bcryptjs";
 import { env } from "../env";
 
-// Create connection pool with environment variables
-const pool = mysql.createPool({
-  host: env.DB_HOST,
-  port: parseInt(env.DB_PORT),
-  user: env.DB_USER,
-  password: env.DB_PASSWORD,
-  database: env.DB_NAME,
-  connectionLimit: 10,
-  enableKeepAlive: true,
-});
+// Create connection pool with environment variables and error handling
+let pool: mysql.Pool;
 
-console.log(`[DB] Pool created successfully - Host: ${env.DB_HOST}, Database: ${env.DB_NAME}`);
+try {
+  pool = mysql.createPool({
+    host: env.DB_HOST,
+    port: parseInt(env.DB_PORT),
+    user: env.DB_USER,
+    password: env.DB_PASSWORD,
+    database: env.DB_NAME,
+    connectionLimit: 10,
+    enableKeepAlive: true,
+    connectTimeout: 10000,
+    acquireTimeout: 10000,
+  });
+
+  // Test connection
+  pool.getConnection()
+    .then(() => {
+      console.log(`[DB] Pool created successfully - Host: ${env.DB_HOST}, Database: ${env.DB_NAME}`);
+    })
+    .catch((err) => {
+      console.error(`[DB] Warning: Could not connect to database - Host: ${env.DB_HOST}, Error: ${err.message}`);
+      console.error(`[DB] App will continue but database features may not work properly`);
+    });
+} catch (error) {
+  console.error(`[DB] Failed to create database pool:`, error);
+  // Create a mock pool to prevent crashes
+  pool = {
+    async execute() { return []; },
+    async query() { return []; },
+    async getConnection() { throw new Error('Database not available'); },
+    async end() { return; }
+  } as any;
+}
 
 // Save session to DB
 export async function saveSessionToDB(sessionName: string, sessionData: any, userId: number | null = null) {
