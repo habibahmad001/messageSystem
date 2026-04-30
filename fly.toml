@@ -1,7 +1,6 @@
 # fly.toml app configuration file for WhatsApp Gateway
 
 app = "wa-gateway"
-primary_region = "ams"
 
 [build]
   dockerfile = "Dockerfile"
